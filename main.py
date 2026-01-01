@@ -280,7 +280,8 @@ class TradeAnalyzer:
         计算每个币种的买入均价
         
         只统计 side=buy 的记录（现货买入）
-        平均价格 = 总买入金额 / 总买入数量
+        净买入数量 = amount - fee（如果手续费币种是基础货币）
+        平均价格 = 总买入金额 / 净买入数量
         """
         if df.empty:
             return pd.DataFrame()
@@ -295,10 +296,23 @@ class TradeAnalyzer:
         # 计算每笔交易的金额
         buy_df["cost"] = buy_df["price"] * buy_df["amount"]
         
+        # 计算净买入数量（扣除用基础货币支付的手续费）
+        # 如果 fee_currency == base_currency，则从 amount 中扣除 fee
+        buy_df["net_amount"] = buy_df.apply(
+            lambda row: row["amount"] - row["fee"] if row["fee_currency"] == row["base_currency"] else row["amount"],
+            axis=1
+        )
+        
+        # 如果手续费用计价货币支付，则从 cost 中扣除
+        buy_df["net_cost"] = buy_df.apply(
+            lambda row: row["cost"] - row["fee"] if row["fee_currency"] == row["quote_currency"] else row["cost"],
+            axis=1
+        )
+        
         # 按基础货币分组统计
         stats = buy_df.groupby("base_currency").agg({
-            "amount": "sum",
-            "cost": "sum",
+            "net_amount": "sum",
+            "net_cost": "sum",
         }).reset_index()
         
         stats.columns = ["currency", "total_amount", "total_cost"]
@@ -320,11 +334,11 @@ class TradeAnalyzer:
         print(f"{'=' * 60}")
         print(f"  持仓均价统计 {today}")
         print(f"{'=' * 60}")
-        print(f"{'币种':<10} {'买入数量':>15} {'买入金额(USDT)':>18} {'平均价格':>15}")
+        print(f"{'币种':<10} {'买入数量':>8} {'买入金额(USDT)':>18} {'平均价格':>8}")
         print(f"{'-' * 60}")
         
         for _, row in stats.iterrows():
-            print(f"{row['currency']:<10} {row['total_amount']:>15.4f} {row['total_cost']:>18.2f} {row['avg_price']:>15.6f}")
+            print(f"{row['currency']:<10} {row['total_amount']:>15.5f} {row['total_cost']:>18.2f} {row['avg_price']:>15.6f}")
         
         print(f"{'=' * 60}")
         print(f"  总计: {len(stats)} 个币种，总买入金额: {stats['total_cost'].sum():.2f} USDT")

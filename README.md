@@ -7,21 +7,44 @@
 - ✅ 查询所有现货成交记录
 - ✅ 增量更新，只拉取新的成交记录
 - ✅ 本地 CSV 缓存，方便查看和分析
-- ✅ 计算每个币种的买入均价
+- ✅ 计算每个币种的买入均价（扣除手续费）
 - ✅ 每日统计报告
 
 ## 安装
 
-```bash
-# 1. 克隆项目
-cd /Users/li/PycharmProjects/gate_trade_history
+### 本地安装
 
-# 2. 创建虚拟环境（可选）
-python3 -m venv venv
-source venv/bin/activate
+```bash
+# 1. 进入项目目录
+cd /path/to/gate_trade_history
+
+# 2. 创建虚拟环境
+python3 -m venv .venv
+source .venv/bin/activate
 
 # 3. 安装依赖
 pip install -r requirements.txt
+```
+
+### 服务器安装 (Ubuntu 24.04+)
+
+Ubuntu 24.04 开始强制使用虚拟环境，**必须**创建 venv：
+
+```bash
+# 1. 进入项目目录
+cd /root/gate-spot-average-position-price-calculation
+
+# 2. 创建虚拟环境
+python3 -m venv .venv
+
+# 3. 激活虚拟环境
+source .venv/bin/activate
+
+# 4. 安装依赖
+pip install -r requirements.txt
+
+# 5. 运行脚本
+python main.py
 ```
 
 ## 配置
@@ -47,6 +70,10 @@ GATE_API_SECRET=your_api_secret_here
 ### 手动运行
 
 ```bash
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 运行脚本
 python main.py
 ```
 
@@ -84,8 +111,8 @@ SOL            50.0000           5000.00      100.000000
 # 编辑 crontab
 crontab -e
 
-# 添加以下内容
-0 8 * * * cd /Users/li/PycharmProjects/gate_trade_history && /usr/bin/python3 main.py >> logs/cron.log 2>&1
+# 添加以下内容（注意使用虚拟环境中的 python）
+0 8 * * * cd /root/gate-spot-average-position-price-calculation && .venv/bin/python main.py >> logs/cron.log 2>&1
 ```
 
 ## 数据文件
@@ -116,19 +143,19 @@ crontab -e
 
 ## 均价计算方法
 
-只统计 `side=buy` 的记录：
+只统计 `side=buy` 的现货买入记录，并**扣除手续费**：
 
 ```
-平均价格 = 总买入金额 / 总买入数量
-总买入金额 = SUM(price × amount)
-总买入数量 = SUM(amount)
+净买入数量 = 买入数量 - 手续费（如果手续费用基础货币支付）
+净买入金额 = 买入金额 - 手续费（如果手续费用USDT支付）
+平均价格 = 净买入金额 / 净买入数量
 ```
 
 ## 常见问题
 
 ### Q: 首次运行很慢？
 
-首次运行需要遍历所有交易对获取历史成交记录，可能需要几分钟。后续运行会使用增量更新，速度会快很多。
+首次运行需要按30天窗口回溯获取历史成交记录，可能需要几分钟。后续运行会使用增量更新，速度会快很多。
 
 ### Q: 如何重新拉取全部数据？
 
@@ -139,7 +166,10 @@ rm data/trades.csv
 python main.py
 ```
 
+### Q: Ubuntu 报错 externally-managed-environment？
+
+Ubuntu 24.04+ 强制使用虚拟环境，请按照"服务器安装"步骤创建 `.venv` 后再安装依赖。
+
 ## License
 
 MIT
-

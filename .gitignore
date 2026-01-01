@@ -36,7 +36,6 @@ env/
 *.swo
 
 # 日志
-logs/
 *.log
 
 # macOS
